@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
@@ -355,6 +356,12 @@ func (c *Client) performPost(endpoint string, data map[string]string) ([]byte, e
 	defer resp.Body.Close()
 
 	if err := checkStatus(resp); err != nil {
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Printf("Error reading response: %v", err)
+			return nil, err
+		}
+		log.Printf("Response: %v", string(body))
 		return nil, err
 	}
 
