@@ -249,7 +249,11 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		return c.getPublicKey()
+		key, err := c.getPublicKey()
+		if err != nil {
+			return nil, err
+		}
+		return *key, nil
 	})
 	if err != nil {
 		return nil, err
