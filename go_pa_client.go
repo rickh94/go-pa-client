@@ -21,7 +21,7 @@ type Client struct {
 	Host            string
 	AppID           string
 	ApiKey          string
-	publicKeyCached *jwk.Key
+	publicKeyCached *interface{}
 }
 
 // Token holds the id token and refresh token for an authenticated user. It is
@@ -249,11 +249,21 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		key, err := c.getPublicKey()
+		pubkey, err := c.getPublicKey()
 		if err != nil {
 			return nil, err
 		}
-		return *key, nil
+		key, ok := pubkey.Key(0)
+		if !ok {
+			return nil, err
+		}
+		var raw interface{}
+		return raw, key.Raw(&raw)
+		// key, err := c.getPublicKey()
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// return *key, nil
 	})
 	if err != nil {
 		return nil, err
@@ -411,7 +421,7 @@ func (c *Client) getPublicKey() (*jwk.Key, error) {
 		return nil, err
 	}
 
-	c.publicKeyCached = &key
+	c.publicKeyCached = &rawKey
 
 	return c.publicKeyCached, nil
 }
