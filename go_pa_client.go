@@ -376,9 +376,6 @@ func (c *Client) performPost(endpoint string, data map[string]string) ([]byte, e
 }
 
 func (c *Client) getPublicKey() (*interface{}, error) {
-	if c.publicKeyCached != nil {
-		return c.publicKeyCached, nil
-	}
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", c.Host, "app/public_key", c.AppID), nil)
 	if err != nil {
 		return nil, err
