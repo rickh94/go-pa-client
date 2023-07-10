@@ -248,8 +248,7 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", c.Host, "app/public_key", c.AppID), nil)
 		if err != nil {
 			return nil, err
@@ -267,6 +266,10 @@ func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 		defer resp.Body.Close()
 
 		respBody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
 		keyset, err := jwk.Parse(respBody)
 		if err != nil {
 			return nil, err
@@ -282,11 +285,6 @@ func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 			return nil, err
 		}
 		return rawKey, nil
-		// key, err := c.getPublicKey()
-		// if err != nil {
-		// 	return nil, err
-		// }
-		// return *key, nil
 	})
 	if err != nil {
 		return nil, err
