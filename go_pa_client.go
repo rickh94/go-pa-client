@@ -247,7 +247,7 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrServerError: If something goes wrong on the server.
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
-func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
+func (c *Client) VerifyToken(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		key, err := c.getPublicKey()
 		if err != nil {
@@ -259,7 +259,7 @@ func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 		return nil, err
 	}
 
-	claims, ok := token.Claims.(JWTClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, errors.New("Couldn't parse claims")
 	}
@@ -274,7 +274,7 @@ func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 		return nil, errors.New("Invalid issuer")
 	}
 
-	return &claims, nil
+	return claims, nil
 }
 
 // DeleteRefreshToken requests the server to permanently delete an active refesh
