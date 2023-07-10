@@ -144,13 +144,13 @@ type JWTClaims struct {
 //     ErrServerError: If something goes wrong on the server.
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
-func (c *Client) VerifyTokenRemote(token string) (map[string]string, error) {
+func (c *Client) VerifyTokenRemote(token string) (map[string]interface{}, error) {
 	body, err := c.performPost("token/verify", map[string]string{"idToken": token})
 	if err != nil {
 		return nil, err
 	}
 
-	var claims map[string]string
+	var claims map[string]interface{}
 	err = json.Unmarshal(body, &claims)
 	if err != nil {
 		return nil, err
