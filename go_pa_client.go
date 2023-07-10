@@ -132,6 +132,11 @@ type JWTClaims struct {
 	Email string `json:"sub"`
 }
 
+type TokenResponse struct {
+	Claims  JWTClaims
+	Headers map[string]string
+}
+
 // VerifyTokenRemote requests the server to verify a user's JWT.
 //
 // Parameters:
@@ -144,18 +149,18 @@ type JWTClaims struct {
 //     ErrServerError: If something goes wrong on the server.
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
-func (c *Client) VerifyTokenRemote(token string) (map[string]interface{}, error) {
+func (c *Client) VerifyTokenRemote(token string) (*TokenResponse, error) {
 	body, err := c.performPost("token/verify", map[string]string{"idToken": token})
 	if err != nil {
 		return nil, err
 	}
 
-	var claims map[string]interface{}
+	var claims TokenResponse
 	err = json.Unmarshal(body, &claims)
 	if err != nil {
 		return nil, err
 	}
-	return claims, nil
+	return &claims, nil
 }
 
 // Refresh submits a refresh token to the server to get a new id token.
@@ -395,6 +400,11 @@ func (c *Client) getPublicKey() (*jwk.Key, error) {
 	key, ok := keyset.Key(0)
 	if !ok {
 		return nil, errors.New("No public key found")
+	}
+
+	var rawKey interface{}
+	if err := key.Raw(&rawKey); err != nil {
+		return nil, err
 	}
 
 	c.publicKeyCached = &key
