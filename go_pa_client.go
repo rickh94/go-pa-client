@@ -7,13 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"time"
 
-	"github.com/MicahParks/keyfunc/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/lestrrat-go/jwx/v2/jwk"
 )
 
 // Client is the configuration struct for working with the purple auth api.
@@ -22,7 +21,7 @@ type Client struct {
 	Host            string
 	AppID           string
 	ApiKey          string
-	publicKeyCached *keyfunc.JWKS
+	publicKeyCached *jwk.Key
 }
 
 // Token holds the id token and refresh token for an authenticated user. It is
@@ -146,10 +145,11 @@ type JWTClaims struct {
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyTokenRemote(token string) (*JWTClaims, error) {
-	body, err := c.performPost("token/verify", map[string]string{"token": token})
+	body, err := c.performPost("token/verify", map[string]string{"idToken": token})
 	if err != nil {
 		return nil, err
 	}
+
 	var claims JWTClaims
 	err = json.Unmarshal(body, &claims)
 	if err != nil {
@@ -243,12 +243,9 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrValidationError: If something is wrong with the request data.
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
-	jwks, err := c.getPublicKey()
-	if err != nil {
-		return nil, ErrServerError
-	}
-	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, jwks.Keyfunc)
-
+	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+		return c.getPublicKey()
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -262,6 +259,7 @@ func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 	if err != nil || expires.Unix() < time.Now().Unix() {
 		return nil, errors.New("Token has expired")
 	}
+
 	issuer, err := claims.GetIssuer()
 	if err != nil || issuer != fmt.Sprintf("%s/app/%s", c.Host, c.AppID) {
 		return nil, errors.New("Invalid issuer")
@@ -356,12 +354,6 @@ func (c *Client) performPost(endpoint string, data map[string]string) ([]byte, e
 	defer resp.Body.Close()
 
 	if err := checkStatus(resp); err != nil {
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			log.Printf("Error reading response: %v", err)
-			return nil, err
-		}
-		log.Printf("Response: %v", string(body))
 		return nil, err
 	}
 
@@ -374,7 +366,7 @@ func (c *Client) performPost(endpoint string, data map[string]string) ([]byte, e
 
 }
 
-func (c *Client) getPublicKey() (*keyfunc.JWKS, error) {
+func (c *Client) getPublicKey() (*jwk.Key, error) {
 	if c.publicKeyCached != nil {
 		return c.publicKeyCached, nil
 	}
@@ -395,15 +387,17 @@ func (c *Client) getPublicKey() (*keyfunc.JWKS, error) {
 	defer resp.Body.Close()
 
 	respBody, err := ioutil.ReadAll(resp.Body)
+	keyset, err := jwk.Parse(respBody)
 	if err != nil {
 		return nil, err
 	}
 
-	jwks, err := keyfunc.NewJSON(respBody)
-	if err != nil {
-		return nil, err
+	key, ok := keyset.Key(0)
+	if !ok {
+		return nil, errors.New("No public key found")
 	}
-	c.publicKeyCached = jwks
+
+	c.publicKeyCached = &key
 
 	return c.publicKeyCached, nil
 }
