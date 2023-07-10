@@ -249,11 +249,44 @@ func (c *Client) GetAppInfo() (*AppInfo, error) {
 //     ErrAuthenticationFailure: If the email code combination doesn't authenticate.
 func (c *Client) VerifyToken(tokenString string) (*JWTClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(token *jwt.Token) (interface{}, error) {
-		key, err := c.getPublicKey()
+
+		req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", c.Host, "app/public_key", c.AppID), nil)
 		if err != nil {
 			return nil, err
 		}
-		return *key, nil
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.ApiKey))
+		resp, err := httpclient.Do(req)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if err := checkStatus(resp); err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+
+		respBody, err := ioutil.ReadAll(resp.Body)
+		keyset, err := jwk.Parse(respBody)
+		if err != nil {
+			return nil, err
+		}
+
+		key, ok := keyset.Key(0)
+		if !ok {
+			return nil, errors.New("No public key found")
+		}
+
+		var rawKey interface{}
+		if err := key.Raw(&rawKey); err != nil {
+			return nil, err
+		}
+		return rawKey, nil
+		// key, err := c.getPublicKey()
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// return *key, nil
 	})
 	if err != nil {
 		return nil, err
@@ -376,6 +409,9 @@ func (c *Client) performPost(endpoint string, data map[string]string) ([]byte, e
 }
 
 func (c *Client) getPublicKey() (*interface{}, error) {
+	if c.publicKeyCached != nil {
+		return c.publicKeyCached, nil
+	}
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/%s/%s", c.Host, "app/public_key", c.AppID), nil)
 	if err != nil {
 		return nil, err
