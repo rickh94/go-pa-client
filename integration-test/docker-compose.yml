@@ -1,0 +1,65 @@
+version: '3'
+services:
+  mongo-test:
+    image: mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: testuser
+      MONGO_INITDB_ROOT_PASSWORD: testpass
+
+  backend:
+    image: rickh94/purple-auth:latest
+    environment:
+      - DB_HOST=mongo-test
+      - REDIS_HOST=redis-test
+      - REDIS_PORT=6379
+      - DEBUG=1
+      - DB_USERNAME=testuser
+      - DB_PASSWORD=testpass
+      - REDIS_PASSWORD=testredispass
+      - APP_VERSION=21.01.1
+      - MAILGUN_ENDPOINT=http://mock-mailgun/v3/mg.example.com/messages
+      - FROM_ADDRESS=test@mg.example.com
+      - MAILGUN_KEY=fake-mailgun-key
+      - FERNET_KEY=QwU0xmHBPLl7lY2aSVgiWE0GiJDn/ReFx/KWDjClgrA=
+      - FQDN_HOST=http://localhost:25898
+      - WEBMASTER_EMAIL=test@example.com
+    depends_on:
+      - mongo-test
+      - redis-test
+
+  redis-test:
+    image: redis:5.0.5-alpine
+    command: redis-server --requirepass testredispass
+
+  mock-mailgun:
+    build:
+      context: ./data/mock-mailgun
+    volumes:
+      - test-data:/test-data
+
+  mock-frontend:
+    build:
+      context: ./data/mock-frontend
+    volumes:
+      - test-data:/test-data
+    ports:
+      - "23801:80"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "25898:80"
+    volumes:
+      - ./data/nginx:/etc/nginx/conf.d
+      - socks:/socks
+    depends_on:
+      - backend
+
+  volume-access:
+    image: ubuntu
+    volumes:
+      - test-data:/test-data
+
+volumes:
+  test-data:
+  socks:

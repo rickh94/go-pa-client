@@ -1,4 +1,5 @@
 # Purple Auth Client (Go)
+[![Go Reference](https://pkg.go.dev/badge/pkgs.go.dev/github.com/rickh94/go-pa-client.svg)](https://pkg.go.dev/pkgs.go.dev/github.com/rickh94/go-pa-client)
 
 An async python client for my ["Purple Auth"
 microservice](https://purpleauth.com).

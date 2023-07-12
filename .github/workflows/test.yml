@@ -1,0 +1,32 @@
+name: Tests
+
+on: [push, pull_request]
+
+env:
+  INTEGRATION_UP: 1
+
+jobs:
+  build:
+    runs-on: ubuntu-latests
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+
+      - name: Compose Up
+        run: docker-compose -f integration-test/docker-compose.yml up -d
+
+      - name: Compose test app 1
+        run: docker-compose -f integration-test/docker-compose.yml run --rm backend sh -c 'python manage.py createapp App -u http://localhost:23801/magic --app-id 123456 -t --api-key testkey'
+
+      - name: Compose test app 1
+        run: docker-compose -f integration-test/docker-compose.yml run --rm backend sh -c 'python manage.py createapp App2 -u http://localhost:23801/magic --app-id 2 -t --api-key testkey'
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Test
+        run: go test -v ./...
